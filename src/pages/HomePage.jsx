@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-
+import { toast, ToastContainer } from 'react-toastify';
 import {
   Select,
   SelectContent,
@@ -10,11 +11,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import AirportSelect from '../../components/AirportSelect';
+import flightService from '../services/flightService';
+import { useNavigate } from 'react-router-dom';
 
-import { Header } from '../../components/Header';
 function HomePage() {
+  const [departureAirport, setDepartureAirport] = useState('');
+  const [arrivalAirport, setArrivalAirport] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [departDate, setDepartDate] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+
+      const searchParams = new URLSearchParams({
+        from: departureAirport,
+        to: arrivalAirport,
+        departDate: departDate,
+        // tripType: tripType,
+        // passengers: passengers,
+      });
+
+      navigate(`/flight-selection?${searchParams.toString()}`);
+
+      // const flights = await flightService.getFlights(params);
+
+      // console.log('Flights found:', flights);
+      // toast({
+      //   title: 'Success',
+      //   description: `Found ${flights.content?.length || 0} flights`,
+      // });
+    } catch (error) {
+      console.error('Error searching flights:', error);
+      // toast({
+      //   title: 'Error',
+      //   description: typeof error === 'string' ? error : 'Failed to search flights',
+      //   variant: 'destructive',
+      // });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="container mx-auto px-4 py-8">
+      <ToastContainer />
       <Card className="border-none shadow-sm overflow-hidden">
         <div className="relative h-80 bg-slate-600">
           <img
@@ -43,17 +86,39 @@ function HomePage() {
             </div>
 
             <div>
-              <Label className="text-base font-medium mb-2 block">From/To</Label>
+              {/* <Label className="text-base font-medium mb-2 block">From/To</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input placeholder="From" className="bg-gray-50 border-gray-200" />
                 <Input placeholder="To" className="bg-gray-50 border-gray-200" />
-              </div>
+              </div> */}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <AirportSelect
+                label="From"
+                value={departureAirport}
+                onChange={setDepartureAirport}
+                excludeCode={arrivalAirport}
+              />
+
+              <AirportSelect
+                label="To"
+                value={arrivalAirport}
+                onChange={setArrivalAirport}
+                excludeCode={departureAirport}
+              />
             </div>
 
             <div>
               <Label className="text-base font-medium mb-2 block">Depart/Return</Label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input type="date" placeholder="Depart" className="bg-gray-50 border-gray-200" />
+                <Input
+                  type="date"
+                  placeholder="Depart"
+                  className="bg-gray-50 border-gray-200"
+                  value={departDate}
+                  onChange={(e) => setDepartDate(e.target.value)}
+                />
                 <Input type="date" placeholder="Return" className="bg-gray-50 border-gray-200" />
               </div>
             </div>
@@ -80,8 +145,10 @@ function HomePage() {
               size="lg"
               variant={'outline'}
               className="bg-blue-500 hover:bg-blue-600 text-white"
+              onClick={handleSearch}
+              disabled={loading}
             >
-              Search flights
+              {loading ? 'Searching...' : 'Search flights'}
             </Button>
           </div>
         </CardContent>

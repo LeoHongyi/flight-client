@@ -1,81 +1,137 @@
-import React from 'react';
-import { InfiniteScrollTable } from '../components/InfiniteScrollTable';
-import { Button } from '../components/ui/button';
-import { Avatar } from '../components/ui/avatar';
-import { TableCell, TableRow } from '../components/ui/table';
+import React, { useState } from 'react';
+import { InfiniteScrollTable } from './InfiniteScrollTable';
+import { Button } from './ui/button';
+import { Avatar } from './ui/avatar';
+import { TableCell, TableRow } from './ui/table';
+import flightService from '../src/services/flightService';
+import { format } from 'date-fns';
 
 export const FlightList = ({
   onSelect,
+  searchParams,
   route = {
-    origin: 'London',
-    destination: 'New York',
+    origin: '',
+    destination: '',
     label: 'Outbound',
   },
 }) => {
+  const [loading, setLoading] = useState(false);
+
   // 表格列配置
   const columns = [
     { header: 'Airline', className: 'py-4' },
+    { header: 'Flight Number' },
     { header: 'Departure' },
     { header: 'Arrival' },
     { header: 'Duration' },
-    { header: 'Stops' },
     { header: 'Price' },
     { header: '' },
   ];
 
-  const fetchFlights = async (page) => {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  const fetchFlights = async (page = 0) => {
+    try {
+      setLoading(true);
 
-    return generateFlightData(page, route);
-  };
+      const params = {
+        from: searchParams.from,
+        to: searchParams.to,
+        date: searchParams.date,
+        page: page,
+        size: 10,
+      };
 
-  const generateFlightData = (pageNum, route, perPage = 5) => {
-    const baseTime = 8;
-    const data = [];
+      console.log('Fetching flights with params:', params);
 
-    const priceBase = route.label === 'Return' ? 550 : 500;
+      const response = await flightService.getFlights(params);
 
-    for (let i = 0; i < perPage; i++) {
-      const departureHour = baseTime + (pageNum - 1) * perPage * 2 + i * 2;
-      if (departureHour > 22) return data;
+      if (response.success) {
+        console.log('Fetched flights:', response.data);
 
-      const departureTime = `${departureHour}:00 ${departureHour < 12 ? 'AM' : 'PM'}`;
-      const arrivalHour = departureHour + 3;
-      const arrivalTime = `${arrivalHour > 12 ? arrivalHour - 12 : arrivalHour}:00 ${arrivalHour < 12 ? 'AM' : 'PM'}`;
+        const flightsData = response.data.content.map((flight) => ({
+          id: flight.id,
+          flightNumber: flight.flightNumber || 'N/A',
+          airline: flight.airline || 'Unknown',
+          departure: `${flight.date}   ${flight.time}`,
+          arrival: formatDateTime(flight.arrivalTime),
+          duration: '3h',
+          price: `$${flight.price || 0}`,
+          airlineIcon: getAirlineColor(flight.flightNumber),
+          origin: flight.departureAirport,
+          destination: flight.arrivalAirport,
+          // 客户端唯一标识，避免重复
+          _clientId: `${flight.id}-${page}`,
+          rawData: flight,
+        }));
 
-      const price = priceBase + (departureHour - 8) * 25;
-
-      data.push({
-        id: (pageNum - 1) * perPage + i + 1,
-        departure: departureTime,
-        arrival: arrivalTime,
-        duration: '3h',
-        stops: 'Non-stop',
-        price: `$${price}`,
-        airlineIcon: `hsl(${(i * 40) % 360}, 70%, 50%)`,
-        origin: route.origin,
-        destination: route.destination,
-      });
+        return {
+          data: flightsData,
+          hasMore: page < response.data.totalPages - 1,
+          totalPages: response.data.totalPages,
+        };
+      } else {
+        console.error('Failed to fetch flights:', response.message);
+        return { data: [], hasMore: false, totalPages: 0 };
+      }
+    } catch (error) {
+      console.error('Error fetching flights:', error);
+      return { data: [], hasMore: false, totalPages: 0 };
+    } finally {
+      setLoading(false);
     }
-
-    return data;
   };
 
-  const renderFlightRow = (flight, index) => (
+  // 格式化日期时间
+  const formatDateTime = (dateTimeString) => {
+    try {
+      const date = new Date(dateTimeString);
+      return format(date, 'h:mm a');
+    } catch (error) {
+      return dateTimeString;
+    }
+  };
+
+  // 计算飞行时间
+  const calculateDuration = (departure, arrival) => {
+    try {
+      const departureTime = new Date(departure);
+      const arrivalTime = new Date(arrival);
+      const durationMs = arrivalTime - departureTime;
+      const hours = Math.floor(durationMs / (1000 * 60 * 60));
+      const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+      return `${hours}h ${minutes}m`;
+    } catch (error) {
+      return 'N/A';
+    }
+  };
+
+  const getAirlineColor = (airline) => {
+    // 简单的哈希算法生成颜色
+    let hash = 0;
+    for (let i = 0; i < airline.length; i++) {
+      hash = airline.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    return `hsl(${hue}, 70%, 50%)`;
+  };
+
+  const renderFlightRow = (flight) => (
     <TableRow key={flight.id} className="border-t hover:bg-gray-50">
       <TableCell className="py-4">
-        <Avatar className="h-10 w-10 rounded-full">
-          <div
-            className="h-full w-full rounded-full"
-            style={{ backgroundColor: flight.airlineIcon }}
-          ></div>
-        </Avatar>
+        <div className="flex items-center">
+          <Avatar className="h-10 w-10 rounded-full mr-3">
+            <div
+              className="h-full w-full rounded-full"
+              style={{ backgroundColor: flight.airlineIcon }}
+            ></div>
+          </Avatar>
+          <span>{flight.airline}</span>
+        </div>
       </TableCell>
+      <TableCell className="text-gray-900 font-medium">{flight.flightNumber}</TableCell>
       <TableCell className="text-gray-900 font-medium">{flight.departure}</TableCell>
       <TableCell className="text-gray-900 font-medium">{flight.arrival}</TableCell>
       <TableCell className="text-gray-900 font-medium">{flight.duration}</TableCell>
-      <TableCell className="text-gray-600">{flight.stops}</TableCell>
-      <TableCell className="text-gray-900 font-medium">{flight.price}</TableCell>
+      <TableCell className="text-gray-900 font-bold">{flight.price}</TableCell>
       <TableCell className="text-right">
         <Button
           variant="ghost"
@@ -94,7 +150,7 @@ export const FlightList = ({
       fetchData={fetchFlights}
       renderRow={renderFlightRow}
       loadingMessage={`Loading more ${route.label.toLowerCase()} flights...`}
-      emptyMessage={`No more ${route.label.toLowerCase()} flights available`}
+      emptyMessage={`No ${route.label.toLowerCase()} flights available for the selected dates`}
     />
   );
 };

@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogOut, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../src/context/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 
 function Header() {
   const [activeLink, setActiveLink] = useState('book');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
+  const { currentUser, logout } = useAuth();
+  console.log('currentUser', currentUser);
 
   const handleLinkClick = (link) => {
     console.log('handleLinkClick', link);
@@ -17,6 +22,37 @@ function Header() {
       setIsMenuOpen(false);
     }
     console.log('activeLink', activeLink);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed', error);
+    }
+    setIsDropdownOpen(false);
+  };
+
+  // Get initials for avatar fallback
+  const getInitials = () => {
+    if (!currentUser) return 'U';
+
+    const firstInitial = currentUser.firstname ? currentUser.firstname.charAt(0) : '';
+    const lastInitial = currentUser.lastname ? currentUser.lastname.charAt(0) : '';
+
+    return (firstInitial + lastInitial).toUpperCase() || 'U';
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (!currentUser) return 'User';
+
+    if (currentUser.firstName && currentUser.lastName) {
+      return `${currentUser.firstName} ${currentUser.lastName}`;
+    }
+
+    return currentUser.email || 'User';
   };
 
   useEffect(() => {
@@ -32,6 +68,21 @@ function Header() {
       window.removeEventListener('resize', checkIfMobile);
     };
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdown = document.getElementById('user-dropdown');
+      if (dropdown && !dropdown.contains(event.target) && isDropdownOpen) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   return (
     <header className="border-b border-gray-100 shadow-sm bg-white">
@@ -86,16 +137,54 @@ function Header() {
               <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-full"></span>
             )}
           </a>
-          <Button
-            size={'lg'}
-            onClick={() => {
-              handleLinkClick('login');
-            }}
-            variant={'outline'}
-            className="ml-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 transition-all duration-200"
-          >
-            Log in
-          </Button>
+
+          {currentUser ? (
+            <div className="relative" id="user-dropdown">
+              <Button
+                size={'lg'}
+                variant={'outline'}
+                className="ml-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 transition-all duration-200 flex items-center gap-2"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={currentUser.photoURL || ''} alt={getDisplayName()} />
+                  <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="max-w-[120px] truncate">{getDisplayName()}</span>
+                <ChevronDown
+                  size={16}
+                  className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </Button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                  <div className="py-1">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
+                    >
+                      <LogOut size={16} className="mr-2" />
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Button
+              size={'lg'}
+              onClick={() => {
+                handleLinkClick('login');
+              }}
+              variant={'outline'}
+              className="ml-4 border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 transition-all duration-200"
+            >
+              Log in
+            </Button>
+          )}
         </nav>
 
         <button
@@ -137,16 +226,38 @@ function Header() {
             >
               Manage
             </a>
-            <Button
-              size="default"
-              variant={'outline'}
-              className="ml-4 bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 transition-all duration-200"
-              onClick={() => {
-                handleLinkClick('login');
-              }}
-            >
-              Log in
-            </Button>
+
+            {currentUser ? (
+              <div className="flex flex-col space-y-2">
+                <div className="font-medium py-2 px-2 text-indigo-600 bg-indigo-50 rounded flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage src={currentUser.photoURL || ''} alt={getDisplayName()} />
+                    <AvatarFallback className="bg-indigo-100 text-indigo-700 text-xs">
+                      {getInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="truncate">{getDisplayName()}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center px-2 py-2 text-red-600 hover:bg-red-50 rounded"
+                >
+                  <LogOut size={16} className="mr-2" />
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Button
+                size="default"
+                variant={'outline'}
+                className="ml-4 bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800 hover:border-indigo-300 transition-all duration-200"
+                onClick={() => {
+                  handleLinkClick('login');
+                }}
+              >
+                Log in
+              </Button>
+            )}
           </nav>
         </div>
       )}
