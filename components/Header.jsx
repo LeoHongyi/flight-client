@@ -207,7 +207,7 @@ function Header() {
               }`}
               onClick={(e) => {
                 e.preventDefault();
-                handleLinkClick('book');
+                handleLinkClick('books');
               }}
             >
               Book

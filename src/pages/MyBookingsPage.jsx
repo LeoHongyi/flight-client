@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
 import { Button } from '../../components/ui/button';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import { Card, CardContent } from '../../components/ui/card';
 import flightService from '../services/flightService';
 
@@ -106,6 +108,25 @@ function MyBookingsPage() {
     }
   };
   console.log('upcomingBookings:', upcomingBookings);
+  const renderLoadingSkeleton = () => {
+    return Array(3)
+      .fill()
+      .map((_, index) => (
+        <div
+          key={index}
+          className="flex justify-between items-center py-6 border-b border-gray-100"
+        >
+          <div className="flex-1 mr-4">
+            <Skeleton width={180} height={16} className="mb-3" />
+            <Skeleton width={280} height={24} className="mb-3" />
+            <Skeleton width={160} height={16} />
+          </div>
+          <div className="w-48 h-32 overflow-hidden rounded-md">
+            <Skeleton height="100%" width="100%" />
+          </div>
+        </div>
+      ));
+  };
   return (
     <div className="container mx-auto px-4 py-10 max-w-4xl">
       <h1 className="text-3xl font-bold mb-8">My Bookings</h1>
@@ -116,7 +137,7 @@ function MyBookingsPage() {
           <Card className="border-0 shadow-none">
             <CardContent className="p-0">
               {loading.upcoming ? (
-                <div className="p-6 text-center">Loading upcoming bookings...</div>
+                <div className="p-4">{renderLoadingSkeleton()}</div>
               ) : upcomingBookings.length > 0 ? (
                 <div className="p-4">
                   {upcomingBookings.map((booking) => renderBookingItem(booking, 'upcoming'))}
@@ -133,7 +154,7 @@ function MyBookingsPage() {
           <Card className="border-0 shadow-none">
             <CardContent className="p-0">
               {loading.past ? (
-                <div className="p-6 text-center">Loading past bookings...</div>
+                <div className="p-4">{renderLoadingSkeleton()}</div>
               ) : pastBookings.length > 0 ? (
                 <div className="p-4">
                   {pastBookings.map((booking) => renderBookingItem(booking, 'past'))}
