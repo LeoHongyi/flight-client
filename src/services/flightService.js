@@ -25,6 +25,14 @@ const FlightService = {
       throw error.response ? error.response.data : error.message;
     }
   },
+  createBooking: async (bookingData) => {
+    try {
+      const response = await API.post('/bookings', bookingData);
+      return response.data;
+    } catch (error) {
+      throw error.response ? error.response.data : error.message;
+    }
+  },
 };
 
 export default FlightService;

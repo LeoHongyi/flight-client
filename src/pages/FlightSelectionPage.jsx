@@ -2,10 +2,23 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { FlightList } from '../../components/FlightList';
 import { Breadcrumb } from '../../components/Breadcrumb';
+import { useFlightSelection } from '../context/FlightSelectionContext';
+import { useNavigate } from 'react-router-dom';
 
 function FlightSelectionPage() {
+  const {
+    selectedFlights,
+    selectOutboundFlight,
+    selectReturnFlight,
+    updateSearchParams,
+    isSelectionComplete,
+  } = useFlightSelection();
+  const navigate = useNavigate();
+
   const handleSelectFlight = (flight) => {
     console.log('Selected flight:', flight);
+    selectOutboundFlight(flight);
+    navigate('/review-flight');
   };
 
   const [searchParams] = useSearchParams();
